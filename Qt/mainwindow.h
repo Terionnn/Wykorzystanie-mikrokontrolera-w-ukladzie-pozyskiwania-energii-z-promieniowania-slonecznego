@@ -30,6 +30,9 @@ public slots:
 
     void stop_1();
     void stop_2();
+    void readFromPort();
+    void create_file();
+    void close_file();
 
 private:
     Ui::MainWindow *ui;
