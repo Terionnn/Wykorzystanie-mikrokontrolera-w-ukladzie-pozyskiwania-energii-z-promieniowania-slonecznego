@@ -25,12 +25,11 @@
 #include <stdio.h>
 #include "bh1750_driver.h"
 #include "ina219_driver.h"
-
+#include "stdlib.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-int licznik=0;
 
 /* USER CODE END PTD */
 
@@ -52,8 +51,11 @@ I2C_HandleTypeDef hi2c2;
 
 TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim2;
+TIM_HandleTypeDef htim3;
 
 UART_HandleTypeDef huart2;
+DMA_HandleTypeDef hdma_usart2_rx;
+DMA_HandleTypeDef hdma_usart2_tx;
 
 /* USER CODE BEGIN PV */
 
@@ -67,67 +69,109 @@ static void MX_USART2_UART_Init(void);
 static void MX_ADC1_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_DMA_Init(void);
-static void MX_TIM2_Init(void);
 static void MX_I2C2_Init(void);
+static void MX_TIM2_Init(void);
+static void MX_TIM3_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-uint8_t data[4];
-int AD_RES;
-uint32_t pomiar;
+uint8_t servo_ctrl[2];
+uint32_t ADCbuff[3];
+volatile int rotate_right = 0;
+volatile int rotate_left = 0;
+volatile int is_rotating = 0;
 
 //servo 1 speed control
 void change_speed_1(int value)
 {
-    HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
     htim1.Instance->CCR1=value;
 }
 
 //servo 2 speed control
 void change_speed_2(int value)
 {
-    HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
     htim1.Instance->CCR2=value;
 }
 
-//receive data via uart
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+
+void measure_and_send()
 {
-    HAL_UART_Receive_IT(&huart2, data, 2);
-}
+    uint32_t illuminance = BH1750_GetIlluminance();
+    double current = (double)INA219_ReadCurrent() * 0.04;
+    double voltage = 3.08* 3.30/4096.00 *(double)ADCbuff[0];
 
-//receive data via adc
-void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
-{
+    char value_1[5];
+    char value_2[6];
+    char value_3[8];
+    char data_frame[17];
 
-}
+    snprintf(value_1, sizeof(value_1), "%.2f", (double)voltage);
+    snprintf(value_2, sizeof(value_2), "%.3f", (double)current);
+    snprintf(value_3, sizeof(value_3), "%.1f", (double)illuminance);
+    snprintf(data_frame, sizeof(data_frame),"%s%s%s", value_1, value_2, value_3);
 
-void measure()
-{
-    uint32_t lux = BH1750_GetIlluminance();
-    uint16_t current = INA219_ReadCurrent();
-    float  voltage = 3.08* 3.30/4096.00 *(float)pomiar;
-
-    char array[5];
-    char array2[6];
-    char array3[19];
-    char array4[8];
-
-    snprintf(array, sizeof array, "%.3f", voltage);
-    snprintf(array2, sizeof array2, "%.4f", (float)current*0.04);
-    snprintf(array4, sizeof array4, "%.1f", (float)lux);
-    snprintf(array3, sizeof(array3),"%s%s%s", array, array2,array4);
-    printf("%s\n", array3);
+    printf("%s\n", data_frame);
 
 }
-
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef* htim)
 {
-    measure();
+    if(htim->Instance==TIM2)
+    {
+
+        measure_and_send();
+
+        if(is_rotating==1)
+        {
+            rotate_right=0;
+            rotate_left=0;
+            is_rotating=0;
+            change_speed_2(1520);
+            HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_2);
+
+
+        }
+        if(rotate_right==1)
+        {
+            HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
+            is_rotating=1;
+            change_speed_2(1500);
+        }
+        if(rotate_left==1)
+        {
+            HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
+            is_rotating=1;
+            change_speed_2(1540);
+        }
+
+
+
+    }
+    if(htim->Instance==TIM3)
+    {
+        int diff = ADCbuff[2] - ADCbuff[1];
+        if(abs(diff) > 30)
+        {
+            if(diff < 0)
+            {
+                rotate_right=1;
+            }
+            else
+            {
+                rotate_left=1;
+            }
+        }
+        else
+        {
+            rotate_left=0;
+            rotate_right=0;
+        }
+
+    }
 }
+
 
 //redefinition of write fcn
 int _write(int file, char *ptr, int len)
@@ -163,7 +207,7 @@ int main(void)
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
-  MX_DMA_Init();
+    MX_DMA_Init();
 
   /* USER CODE END SysInit */
 
@@ -174,92 +218,75 @@ int main(void)
   MX_ADC1_Init();
   MX_I2C1_Init();
   MX_DMA_Init();
-  MX_TIM2_Init();
   MX_I2C2_Init();
+  MX_TIM2_Init();
+  MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
-    __HAL_RCC_I2C1_CLK_ENABLE();
-    __I2C1_CLK_ENABLE();
-    __HAL_RCC_I2C2_CLK_ENABLE();
-    __I2C2_CLK_ENABLE();
-    HAL_TIM_Base_Start_IT(&htim2);
-    HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
-    HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
-    __HAL_UART_ENABLE_IT(&huart2, UART_IT_RXNE);
-    __HAL_RCC_ADC1_CLK_ENABLE();
-    __HAL_RCC_USART2_CLK_ENABLE();
-    HAL_UART_Receive_IT(&huart2, data, 2);
+   __HAL_RCC_I2C1_CLK_ENABLE();
+   __I2C1_CLK_ENABLE();
+   __HAL_RCC_I2C2_CLK_ENABLE();
+   __I2C2_CLK_ENABLE();
+   HAL_TIM_Base_Start_IT(&htim2);
+   HAL_TIM_Base_Start_IT(&htim3);
+   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
+   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
+   __HAL_UART_ENABLE_IT(&huart2, UART_IT_RXNE);
+   __HAL_RCC_ADC1_CLK_ENABLE();
+   __HAL_RCC_USART2_CLK_ENABLE();
+   HAL_UART_Receive_DMA(&huart2, servo_ctrl, 2);
+   HAL_ADC_Start_DMA(&hadc1, ADCbuff, 3);
 
-    BH1750_PowerOn();
-    HAL_Delay(200);
-    BH1750_SetContinuousMode();
-
-
-    HAL_ADC_Start_DMA(&hadc1, &pomiar, 1);
-
-    INA219_Reset();
-    HAL_Delay(200);
-    INA219_Calibrate();
+   BH1750_PowerOn();
+   HAL_Delay(200);
+   BH1750_SetContinuousMode();
+   INA219_Reset();
+   HAL_Delay(200);
+   INA219_Calibrate();
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
     while (1)
     {
-        HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_8);
-        HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
 
-        if (data[0]==0)
+        if (servo_ctrl[0]==0)
         {
-            change_speed_1(1535);
+            change_speed_1(1520);
             HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_1);
-
-            HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, RESET);
-
         }
-        else if (data[0]==1)
+        else if (servo_ctrl[0]==1)
         {
             HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
-
-            change_speed_1(1625);
-            HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, SET);
-
+            change_speed_1(1540);
         }
-        else if (data[0]==2)
+        else if (servo_ctrl[0]==2)
         {
             HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
-
-            change_speed_1(1425);
-            HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, SET);
-
+            change_speed_1(1500);
         }
 
-        if (data[1]==0)
+        if (servo_ctrl[1]==0)
         {
-            change_speed_2(1525);
+            change_speed_2(1530);
             HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_2);
-
-            HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, RESET);
-
         }
-        else if (data[1]==1)
+        else if (servo_ctrl[1]==1)
         {
-            change_speed_2(1425);
-            HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, SET);
-
+            HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
+            change_speed_2(1490);
         }
 
-        else if (data[1]==2)
+        else if (servo_ctrl[1]==2)
         {
-            change_speed_2(1625);
-            HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, SET);
-
+            HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
+            change_speed_2(1570);
         }
-
+    }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
 
-    }
+
   /* USER CODE END 3 */
 }
 
@@ -332,13 +359,13 @@ static void MX_ADC1_Init(void)
   hadc1.Instance = ADC1;
   hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV8;
   hadc1.Init.Resolution = ADC_RESOLUTION_12B;
-  hadc1.Init.ScanConvMode = DISABLE;
+  hadc1.Init.ScanConvMode = ENABLE;
   hadc1.Init.ContinuousConvMode = ENABLE;
   hadc1.Init.DiscontinuousConvMode = DISABLE;
   hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
   hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
   hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
-  hadc1.Init.NbrOfConversion = 1;
+  hadc1.Init.NbrOfConversion = 3;
   hadc1.Init.DMAContinuousRequests = ENABLE;
   hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
   if (HAL_ADC_Init(&hadc1) != HAL_OK)
@@ -351,6 +378,24 @@ static void MX_ADC1_Init(void)
   sConfig.Channel = ADC_CHANNEL_15;
   sConfig.Rank = 1;
   sConfig.SamplingTime = ADC_SAMPLETIME_84CYCLES;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+  */
+  sConfig.Channel = ADC_CHANNEL_12;
+  sConfig.Rank = 2;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+  */
+  sConfig.Channel = ADC_CHANNEL_13;
+  sConfig.Rank = 3;
   if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
   {
     Error_Handler();
@@ -545,6 +590,51 @@ static void MX_TIM2_Init(void)
 }
 
 /**
+  * @brief TIM3 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM3_Init(void)
+{
+
+  /* USER CODE BEGIN TIM3_Init 0 */
+
+  /* USER CODE END TIM3_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM3_Init 1 */
+
+  /* USER CODE END TIM3_Init 1 */
+  htim3.Instance = TIM3;
+  htim3.Init.Prescaler = 8000-1;
+  htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim3.Init.Period = (10000-1)*2;
+  htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim3, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM3_Init 2 */
+
+  /* USER CODE END TIM3_Init 2 */
+
+}
+
+/**
   * @brief USART2 Initialization Function
   * @param None
   * @retval None
@@ -585,8 +675,15 @@ static void MX_DMA_Init(void)
 
   /* DMA controller clock enable */
   __HAL_RCC_DMA2_CLK_ENABLE();
+  __HAL_RCC_DMA1_CLK_ENABLE();
 
   /* DMA interrupt init */
+  /* DMA1_Stream5_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Stream5_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Stream5_IRQn);
+  /* DMA1_Stream6_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Stream6_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Stream6_IRQn);
   /* DMA2_Stream0_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(DMA2_Stream0_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(DMA2_Stream0_IRQn);

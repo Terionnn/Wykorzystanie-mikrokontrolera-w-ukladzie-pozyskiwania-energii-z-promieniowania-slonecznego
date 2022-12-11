@@ -27,10 +27,6 @@ uint8_t	BH1750_SetContinuousMode()
 		tmp[1] = (0x60 | (31 & 0x1F));
 	HAL_I2C_Master_Transmit(&hi2c1, BH1750_ADDR, &tmp[0], 1, 10);
 	HAL_I2C_Master_Transmit(&hi2c1, BH1750_ADDR, &tmp[1], 1, 10);
-
-
-
-
 }
 
 uint32_t BH1750_GetIlluminance()
