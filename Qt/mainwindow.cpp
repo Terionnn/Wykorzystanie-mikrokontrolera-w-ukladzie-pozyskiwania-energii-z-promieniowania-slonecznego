@@ -46,7 +46,6 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->pushButton_7,SIGNAL(pressed()), this, SLOT(down()));
     connect(ui->pushButton_7,SIGNAL(released()), this, SLOT(stop_2()));
 
-
     connect(ui->pushButton_3,SIGNAL(clicked()), this, SLOT(create_file()));
     connect(ui->pushButton_8,SIGNAL(clicked()), this, SLOT(close_file()));
 
@@ -118,7 +117,6 @@ void MainWindow::add(QString message)
 void MainWindow::left()
 {
     if(isConnected==1){
-        add("ruch w lewo");
         servo_ctrl[0]=1;
         this->device->write(servo_ctrl, 2);
     }
@@ -130,8 +128,6 @@ void MainWindow::left()
 void MainWindow::right()
 {
     if(isConnected==1){
-
-        add("ruch w prawo");
         servo_ctrl[0]=2;
         this->device->write(servo_ctrl, 2);
     }
@@ -142,12 +138,13 @@ void MainWindow::right()
 
 void MainWindow::stop_1()
 {
-    if(isConnected==1)
-
-        add("serwo 1 zatrzymane");
+    if(isConnected==1){
     servo_ctrl[0]=0;
     this->device->write(servo_ctrl, 2);
+    }
 
+    else
+        add("Brak połączenia z urządzeniem.");
 
 
 }
@@ -156,8 +153,6 @@ void MainWindow::stop_1()
 void MainWindow::up()
 {
     if(isConnected==1){
-
-        add("ruch w górę");
         servo_ctrl[1]=1;
         this->device->write(servo_ctrl, 2);
     }
@@ -170,8 +165,6 @@ void MainWindow::up()
 void MainWindow::down()
 {
     if(isConnected==1){
-
-        add("ruch w dół");
         servo_ctrl[1]=2;
         this->device->write(servo_ctrl, 2);
     }
@@ -184,54 +177,50 @@ void MainWindow::down()
 void MainWindow::stop_2()
 {
     if(isConnected==1)
-
-        add("serwo 2 zatrzymane");
     servo_ctrl[1]=0;
     this->device->write(servo_ctrl, 2);
 }
 
 void MainWindow::readFromPort()
 {
-    char znak[7];
+    char voltage_buff[5];
+    char current_buff[6];
+    char illuminance_buff[8];
 
     while(this->device->canReadLine()) {
 
-        this->device->readLine(znak,5);
+        this->device->readLine(voltage_buff,5);
 
-        float f;
-        sscanf(znak, "%f", &f);
-        QString tmp = QString::number(f, 'f', 2);
-        voltage = f;
+        float voltage_float;
+        sscanf(voltage_buff, "%f", &voltage_float);
+        QString voltage_string = QString::number(voltage_float, 'f', 2);
 
-        this->device->readLine(znak,6);
+        this->device->readLine(current_buff,6);
 
-        float f2;
-        sscanf(znak, "%f", &f2);
-        QString tmp2 = QString::number(f2, 'f', 1);
-        current = f2;
-        this->device->readLine(znak,10);
+        float current_float;
+        sscanf(current_buff, "%f", &current_float);
+        QString current_string = QString::number(current_float, 'f', 2);
+
+        this->device->readLine(illuminance_buff,8);
         float illuminance;
-        sscanf(znak, "%f", &illuminance);
+        sscanf(illuminance_buff, "%f", &illuminance);
         qDebug() << illuminance;
+        QString illuminance_string = QString::number(illuminance);
 
-        QString tmp4 = QString::number(illuminance);
 
-
-        ui->label_11->setText(tmp);
-        ui->label_12->setText(tmp2);
-        ui->label_20->setText(tmp4);
-
-        float f3 = f*f2;
-        QString tmp3 = QString::number(f3, 'f', 2);
-        ui->label_13->setText(tmp3);
-
+        float power = voltage_float*current_float;
+        QString power_string = QString::number(power, 'f', 2);
+        ui->label_13->setText(current_string);
+        ui->label_11->setText(power_string);
+        ui->label_12->setText(voltage_string);
+        ui->label_20->setText(illuminance_string);
         if(isOpen==1){
             QDateTime date = QDateTime::currentDateTime();
             QString formattedTime1 = date.toString("dd.MM.yyyy hh:mm:ss");
             string formattedTime = formattedTime1.toStdString();
             fprintf(file, "%s; ", formattedTime.c_str());
-            fprintf(file, "%.2f; ", voltage);
-            fprintf(file, "%.1f; ", current);
+            fprintf(file, "%.2f; ", voltage_float);
+            fprintf(file, "%.1f; ", current_float);
             fprintf(file, "%d\n", (int)illuminance);
 
 
