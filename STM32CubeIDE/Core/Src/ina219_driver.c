@@ -10,8 +10,8 @@ void INA219_Reset()
 {
 	uint16_t Tdata = 0x8000;
     uint8_t addr[2];
-    addr[0] = (Tdata >> 8) & 0xff;  // upper byte
-    addr[1] = (Tdata >> 0) & 0xff; // lower byte
+    addr[0] = (Tdata >> 8) & 0xff;
+    addr[1] = (Tdata >> 0) & 0xff;
     HAL_I2C_Mem_Write(&hi2c2, INA219_ADDR, 0x00, 1, addr, 2, 1000);
 }
 
@@ -21,12 +21,12 @@ void INA219_Calibrate()
 	uint16_t ina219_calibrationValue = 9840;
 
 	uint8_t addr[2];
-	addr[0] = (ina219_calibrationValue >> 8) & 0xff;  // uvpper byte
-	addr[1] = (ina219_calibrationValue >> 0) & 0xff; // lower byte
+	addr[0] = (ina219_calibrationValue >> 8) & 0xff;
+	addr[1] = (ina219_calibrationValue >> 0) & 0xff;
     HAL_I2C_Mem_Write(&hi2c2, INA219_ADDR, 0x05, 1, addr, 2, 1000);
 
-    addr[0] = (config >> 8) & 0xff;  // upper byte
-    addr[1] = (config >> 0) & 0xff; // lower byte
+    addr[0] = (config >> 8) & 0xff;
+    addr[1] = (config >> 0) & 0xff;
     HAL_I2C_Mem_Write(&hi2c2, INA219_ADDR, 0x00, 1, addr, 2, 1000);
 }
 

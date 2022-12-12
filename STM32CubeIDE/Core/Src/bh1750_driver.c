@@ -16,7 +16,7 @@ uint8_t	BH1750_PowerOn()
 	return HAL_I2C_Master_Transmit(&hi2c1, BH1750_ADDR, &Tdata, 1, 100);
 }
 
-uint8_t	BH1750_SetContinuousMode()
+void BH1750_SetContinuousMode()
 {
 	uint8_t Tdata = 0x10;
 	HAL_I2C_Master_Transmit(&hi2c1, BH1750_ADDR, &Tdata, 1, 100);
