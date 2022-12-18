@@ -64,11 +64,11 @@ DMA_HandleTypeDef hdma_usart2_tx;
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
-static void MX_TIM1_Init(void);
+static void MX_DMA_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_ADC1_Init(void);
 static void MX_I2C1_Init(void);
-static void MX_DMA_Init(void);
+static void MX_TIM1_Init(void);
 static void MX_I2C2_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_TIM3_Init(void);
@@ -120,31 +120,27 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef* htim)
 {
     if(htim->Instance==TIM2)
     {
-
-        measure_and_send();
-
         if(is_rotating==1)
         {
             rotate_right=0;
             rotate_left=0;
             is_rotating=0;
-            change_speed_2(1520);
-            HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_2);
-
-
-        }
-        if(rotate_right==1)
-        {
-            HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
-            is_rotating=1;
-            change_speed_2(1500);
+            change_speed_1(1520);
+            HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_1);
         }
         if(rotate_left==1)
         {
-            HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
+            change_speed_1(1540);
+            HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
             is_rotating=1;
-            change_speed_2(1540);
         }
+        if(rotate_right==1)
+        {
+            change_speed_1(1500);
+            HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
+            is_rotating=1;
+        }
+        measure_and_send();
 
 
 
@@ -213,11 +209,11 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_TIM1_Init();
+  MX_DMA_Init();
   MX_USART2_UART_Init();
   MX_ADC1_Init();
   MX_I2C1_Init();
-  MX_DMA_Init();
+  MX_TIM1_Init();
   MX_I2C2_Init();
   MX_TIM2_Init();
   MX_TIM3_Init();
@@ -248,7 +244,8 @@ int main(void)
   /* USER CODE BEGIN WHILE */
     while (1)
     {
-
+    	if(is_rotating==0 && rotate_left==0 && rotate_right==0)
+    	{
         if (servo_ctrl[0]==0)
         {
             change_speed_1(1520);
@@ -273,14 +270,15 @@ int main(void)
         else if (servo_ctrl[1]==1)
         {
             HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
-            change_speed_2(1490);
+            change_speed_2(1500);
         }
 
         else if (servo_ctrl[1]==2)
         {
             HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
-            change_speed_2(1570);
+            change_speed_2(1560);
         }
+    }
     }
     /* USER CODE END WHILE */
 
