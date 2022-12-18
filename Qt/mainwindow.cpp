@@ -239,7 +239,7 @@ void MainWindow::create_file()
     {
         const char * name = str.c_str();
         file = fopen(name , "a");
-        fprintf(file, "Dane sa zapisane w formacie: 'data'; 'napięcie'; 'prąd'; 'natężenie światła'.\n");
+        fprintf(file, "Dane są zapisane w formacie: 'data'; 'napięcie'; 'prąd'; 'natężenie światła'.\n");
         isOpen =1;
         add("Rozpoczęto zapis do pliku.");
     }
