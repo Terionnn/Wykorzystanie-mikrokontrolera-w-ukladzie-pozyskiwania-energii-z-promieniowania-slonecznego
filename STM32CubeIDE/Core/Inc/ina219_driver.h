@@ -12,10 +12,7 @@
 
 void INA219_Reset();
 void INA219_Calibrate();
-uint16_t INA219_ReadBusVoltage();
 uint16_t INA219_ReadCurrent();
 
-uint16_t INA219_ReadShuntVoltage();
-uint16_t INA219_ReadPower();
 
 #endif /* INC_INA219_DRIVER_H_ */
