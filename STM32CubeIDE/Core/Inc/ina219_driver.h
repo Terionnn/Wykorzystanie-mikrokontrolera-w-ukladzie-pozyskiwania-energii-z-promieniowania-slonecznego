@@ -3,6 +3,8 @@
  *
  *  Created on: 17 sie 2022
  *      Author: Kamil
+ *
+ *      Na podstawie: https://github.com/komuch/PSM_INA219_STM32
  */
 
 #ifndef INC_INA219_DRIVER_H_
@@ -15,4 +17,4 @@ void INA219_Calibrate();
 uint16_t INA219_ReadCurrent();
 
 
-#endif /* INC_INA219_DRIVER_H_ */
+#endif

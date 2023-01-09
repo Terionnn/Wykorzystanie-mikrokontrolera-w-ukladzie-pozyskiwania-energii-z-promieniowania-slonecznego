@@ -122,23 +122,23 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef* htim)
     {
         if(is_rotating==1)
         {
+            change_speed_1(1520);
+            HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_1);
             rotate_right=0;
             rotate_left=0;
             is_rotating=0;
-            change_speed_1(1520);
-            HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_1);
         }
         if(rotate_left==1)
         {
+            HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
             change_speed_1(1540);
-            HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
-            is_rotating=1;
+        	is_rotating=1;
         }
-        if(rotate_right==1)
+        else if(rotate_right==1)
         {
-            change_speed_1(1500);
             HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
-            is_rotating=1;
+            change_speed_1(1500);
+        	is_rotating=1;
         }
         measure_and_send();
 
@@ -249,22 +249,21 @@ int main(void)
         if (servo_ctrl[0]==0)
         {
             change_speed_1(1520);
-            HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_1);
         }
         else if (servo_ctrl[0]==1)
         {
+        	change_speed_1(1540);
             HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
-            change_speed_1(1540);
         }
         else if (servo_ctrl[0]==2)
         {
-            HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
             change_speed_1(1500);
+            HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
         }
 
         if (servo_ctrl[1]==0)
         {
-            change_speed_2(1530);
+            change_speed_2(1535);
             HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_2);
         }
         else if (servo_ctrl[1]==1)
@@ -278,6 +277,8 @@ int main(void)
             HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
             change_speed_2(1560);
         }
+
+
     }
     }
     /* USER CODE END WHILE */
